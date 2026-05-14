@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Test Animación Personaje</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #eee;
+    gap: 20px;
+  }
+  h1 { color: #f0a500; letter-spacing: 4px; font-size: 1.4rem; }
+
+  canvas {
+    border: 2px solid #f0a50066;
+    background: #8B7355;
+    image-rendering: pixelated;
+  }
+
+  .controles {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button {
+    padding: 10px 20px;
+    background: #2a2a4e;
+    border: 2px solid #f0a500;
+    color: #f0a500;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover, button.activo { background: #f0a500; color: #1a1a2e; }
+
+  .info {
+    font-size: 0.8rem;
+    color: #888;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  .info span { color: #f0a500; }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+  input[type=range] { width: 150px; accent-color: #f0a500; }
+</style>
+</head>
+<body>
+
+<h1>🧪 TEST ANIMACIÓN</h1>
+
+<canvas id="canvas" width="270" height="270"></canvas>
+
+<div class="controles">
+  <button onclick="setDireccion(0)" id="btn0" class="activo">⬆️ ARRIBA</button>
+  <button onclick="setDireccion(1)" id="btn1">⬇️ ABAJO</button>
+  <button onclick="setDireccion(2)" id="btn2">⬅️ IZQUIERDA</button>
+  <button onclick="setDireccion(3)" id="btn3">➡️ DERECHA</button>
+</div>
+
+<label>
+  Velocidad:
+  <input type="range" id="velocidad" min="1" max="20" value="8">
+  <span id="velVal">8</span> fps
+</label>
+
+<div class="info">
+  Frame actual: <span id="infoFrame">0</span> / 3 &nbsp;|&nbsp;
+  Fila (dirección): <span id="infoFila">0</span> &nbsp;|&nbsp;
+  Tamaño frame: <span>270 × 270 px</span>
+</div>
+
+<div class="info" style="color:#666; font-size:0.75rem;">
+  Coloca tu archivo <span style="color:#f0a500">personajeframes.png</span> en la misma carpeta que este HTML
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const FRAME_W = 270;
+const FRAME_H = 270;
+const COLS = 4;
+
+let direccion = 0;
+let frameActual = 0;
+let fps = 8;
+let ultimoTiempo = 0;
+let intervalo = 1000 / fps;
+let moviendose = false;
+
+const teclasPulsadas = {};
+
+window.addEventListener('keydown', e => {
+  teclasPulsadas[e.key] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => {
+  teclasPulsadas[e.key] = false;
+});
+
+function procesarTeclado() {
+  let nuevaDireccion = direccion;
+  moviendose = false;
+
+  if (teclasPulsadas['ArrowUp']    || teclasPulsadas['w']) { nuevaDireccion = 0; moviendose = true; }
+  if (teclasPulsadas['ArrowDown']  || teclasPulsadas['s']) { nuevaDireccion = 1; moviendose = true; }
+  if (teclasPulsadas['ArrowLeft']  || teclasPulsadas['a']) { nuevaDireccion = 2; moviendose = true; }
+  if (teclasPulsadas['ArrowRight'] || teclasPulsadas['d']) { nuevaDireccion = 3; moviendose = true; }
+
+  if (nuevaDireccion !== direccion) {
+    direccion = nuevaDireccion;
+    frameActual = 0;
+    document.querySelectorAll('button').forEach((b, i) => {
+      b.classList.toggle('activo', i === direccion);
+    });
+  }
+}
+
+const img = new Image();
+img.src = 'personajeframes.png';
+
+img.onerror = () => {
+  ctx.fillStyle = '#f0a500';
+  ctx.font = '14px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚠️ No se encontró personajeframes.png', 135, 120);
+  ctx.fillStyle = '#888';
+  ctx.font = '12px Courier New';
+  ctx.fillText('Pon el PNG en la misma carpeta', 135, 145);
+  ctx.fillText('que este archivo HTML', 135, 163);
+};
+
+function setDireccion(d) {
+  direccion = d;
+  frameActual = 0;
+  document.querySelectorAll('button').forEach((b, i) => {
+    b.classList.toggle('activo', i === d);
+  });
+}
+
+document.getElementById('velocidad').addEventListener('input', function() {
+  fps = parseInt(this.value);
+  intervalo = 1000 / fps;
+  document.getElementById('velVal').textContent = fps;
+});
+
+function dibujar(timestamp) {
+  requestAnimationFrame(dibujar);
+  procesarTeclado();
+
+  if (timestamp - ultimoTiempo < intervalo) return;
+  ultimoTiempo = timestamp;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (img.complete && img.naturalWidth > 0) {
+    const sx = frameActual * FRAME_W;
+    const sy = direccion * FRAME_H;
+    ctx.drawImage(img, sx, sy, FRAME_W, FRAME_H, 0, 0, 270, 270);
+    // Solo avanza frame si se está moviendo
+    if (moviendose) {
+      frameActual = (frameActual + 1) % COLS;
+    } else {
+      frameActual = 0; // frame neutral parado
+    }
+  }
+
+  document.getElementById('infoFrame').textContent = frameActual;
+  document.getElementById('infoFila').textContent = direccion;
+}
+
+requestAnimationFrame(dibujar);
+</script>
+
+</body>
+</html>
